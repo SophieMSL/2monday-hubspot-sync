@@ -375,12 +375,18 @@ app.get('/', function(req, res) {
     fieldMappingsHtml += '<div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">';
     fieldMappingsHtml += '<div style="flex: 1;"><label style="margin-bottom: 5px;">HubSpot Field</label><select name="hubspot_' + index + '" id="hubspot_' + index + '" class="hubspot-field-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">';
     fieldMappingsHtml += '<option value="">Select HubSpot Field...</option>';
+    if (mapping.hubspotField) {
+      fieldMappingsHtml += '<option value="' + mapping.hubspotField + '" selected>' + (mapping.label || mapping.hubspotField) + ' (' + mapping.hubspotField + ')</option>';
+    }
     fieldMappingsHtml += '</select></div>';
     
     fieldMappingsHtml += '<div style="flex: 0 0 50px; text-align: center; font-size: 20px; margin-top: 20px;">→</div>';
     
     fieldMappingsHtml += '<div style="flex: 1;"><label style="margin-bottom: 5px;">Monday Column</label><select name="monday_' + index + '" id="monday_' + index + '" class="monday-column-select" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">';
     fieldMappingsHtml += '<option value="">Select Monday Column...</option>';
+    if (mapping.mondayColumn) {
+      fieldMappingsHtml += '<option value="' + mapping.mondayColumn + '" selected>' + mapping.mondayColumn + '</option>';
+    }
     fieldMappingsHtml += '</select></div>';
     fieldMappingsHtml += '</div>';
     
