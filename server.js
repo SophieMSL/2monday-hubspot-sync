@@ -16,13 +16,18 @@ let config = {
   lastSync: null,
   syncLog: [],
   detailedLog: [],
+  rmaField: {
+    hubspot: 'rma_number',
+    monday: 'text_mknfeq16'
+  },
   fieldMappings: [
     { hubspotField: 'content', mondayColumn: 'text', label: 'Description', sourceOfTruth: 'hubspot' },
     { hubspotField: 'hs_pipeline_stage', mondayColumn: 'status', label: 'Status', sourceOfTruth: 'monday' },
     { hubspotField: 'hs_ticket_priority', mondayColumn: 'priority', label: 'Priority', sourceOfTruth: 'monday' }
   ],
   mondayColumns: [],
-  hubspotProperties: []
+  hubspotProperties: [],
+  autoCreateItems: false
 };
 
 const syncState = new Map();
@@ -104,7 +109,7 @@ async function fetchMondayColumns() {
 async function getHubSpotTickets() {
   try {
     const propertyList = config.fieldMappings.map(function(m) { return m.hubspotField; }).join(',');
-    const allProps = 'subject,' + propertyList + ',hubspot_owner_id';
+    const allProps = 'subject,' + propertyList + ',' + config.rmaField.hubspot + ',hubspot_owner_id';
     
     const response = await axios.get('https://api.hubapi.com/crm/v3/objects/tickets', {
       headers: {
@@ -126,6 +131,10 @@ async function getHubSpotTickets() {
 async function createHubSpotTicket(data) {
   try {
     const properties = { subject: data.subject };
+    
+    if (data.rma_number) {
+      properties[config.rmaField.hubspot] = data.rma_number;
+    }
     
     config.fieldMappings.forEach(function(mapping) {
       if (data[mapping.mondayColumn] !== undefined) {
@@ -207,6 +216,11 @@ async function createMondayItem(ticketData) {
   const query = 'mutation ($boardId: ID!, $itemName: String!, $columnValues: JSON!) { create_item(board_id: $boardId, item_name: $itemName, column_values: $columnValues) { id } }';
   
   const columnValues = {};
+  
+  if (ticketData.rma_number && config.rmaField.monday) {
+    columnValues[config.rmaField.monday] = ticketData.rma_number;
+  }
+  
   config.fieldMappings.forEach(function(mapping) {
     if (ticketData[mapping.hubspotField] && mapping.mondayColumn) {
       columnValues[mapping.mondayColumn] = ticketData[mapping.hubspotField];
@@ -252,16 +266,26 @@ async function syncHubSpotToMonday() {
     
     const mondayMap = new Map();
     mondayItems.forEach(function(item) {
-      mondayMap.set(item.name, item);
+      const rmaCol = item.column_values.find(function(c) {
+        return c.id === config.rmaField.monday;
+      });
+      if (rmaCol && rmaCol.text) {
+        mondayMap.set(rmaCol.text, item);
+      }
     });
     
     let created = 0;
     let updated = 0;
+    let skipped = 0;
     let failed = 0;
     
     for (let i = 0; i < tickets.length; i++) {
       const ticket = tickets[i];
-      const ticketData = { subject: ticket.properties.subject };
+      const rmaNumber = ticket.properties[config.rmaField.hubspot];
+      const ticketData = { 
+        subject: ticket.properties.subject,
+        rma_number: rmaNumber
+      };
       
       const fieldDetails = [];
       config.fieldMappings.forEach(function(mapping) {
@@ -271,14 +295,25 @@ async function syncHubSpotToMonday() {
         }
       });
       
-      const existingItem = mondayMap.get(ticketData.subject);
+      if (!rmaNumber) {
+        skipped++;
+        logDetailed(syncTime, 'HubSpot → Monday', 'Skipped', ticketData.subject, 'No RMA number', 'info');
+        continue;
+      }
+      
+      const existingItem = mondayMap.get(rmaNumber);
       
       try {
         if (!existingItem) {
-          await createMondayItem(ticketData);
-          created++;
-          logSync('Created Monday item: ' + ticketData.subject, 'success');
-          logDetailed(syncTime, 'HubSpot → Monday', 'Created', ticketData.subject, fieldDetails.join(', '), 'success');
+          if (config.autoCreateItems) {
+            await createMondayItem(ticketData);
+            created++;
+            logSync('Created Monday item: ' + ticketData.subject, 'success');
+            logDetailed(syncTime, 'HubSpot → Monday', 'Created', ticketData.subject, 'RMA: ' + rmaNumber + ', ' + fieldDetails.join(', '), 'success');
+          } else {
+            skipped++;
+            logDetailed(syncTime, 'HubSpot → Monday', 'Skipped', ticketData.subject, 'No matching RMA in Monday (RMA: ' + rmaNumber + ')', 'info');
+          }
         } else {
           const updateData = {};
           const updatedFields = [];
@@ -294,19 +329,20 @@ async function syncHubSpotToMonday() {
           if (Object.keys(updateData).length > 0) {
             await updateMondayItem(existingItem.id, updateData);
             updated++;
-            logDetailed(syncTime, 'HubSpot → Monday', 'Updated', ticketData.subject, 'Fields: ' + updatedFields.join(', '), 'success');
+            logDetailed(syncTime, 'HubSpot → Monday', 'Updated', ticketData.subject, 'RMA: ' + rmaNumber + ', Fields: ' + updatedFields.join(', '), 'success');
           } else {
-            logDetailed(syncTime, 'HubSpot → Monday', 'Skipped', ticketData.subject, 'No fields to sync (source of truth rules)', 'info');
+            skipped++;
+            logDetailed(syncTime, 'HubSpot → Monday', 'Skipped', ticketData.subject, 'RMA: ' + rmaNumber + ', No fields to sync (source of truth rules)', 'info');
           }
         }
       } catch (error) {
         failed++;
         logSync('Failed to sync ticket: ' + ticketData.subject, 'error');
-        logDetailed(syncTime, 'HubSpot → Monday', 'Failed', ticketData.subject, 'Error: ' + error.message, 'error');
+        logDetailed(syncTime, 'HubSpot → Monday', 'Failed', ticketData.subject, 'RMA: ' + rmaNumber + ', Error: ' + error.message, 'error');
       }
     }
     
-    logSync('HubSpot to Monday sync complete: ' + created + ' created, ' + updated + ' updated, ' + failed + ' failed', failed > 0 ? 'error' : 'success');
+    logSync('HubSpot to Monday sync complete: ' + created + ' created, ' + updated + ' updated, ' + skipped + ' skipped, ' + failed + ' failed', failed > 0 ? 'error' : 'success');
     config.lastSync = new Date().toISOString();
   } catch (error) {
     logSync('Sync failed: ' + error.message, 'error');
@@ -324,16 +360,29 @@ async function syncMondayToHubSpot() {
     
     const hubspotMap = new Map();
     hubspotTickets.forEach(function(ticket) {
-      hubspotMap.set(ticket.properties.subject, ticket);
+      const rmaNumber = ticket.properties[config.rmaField.hubspot];
+      if (rmaNumber) {
+        hubspotMap.set(rmaNumber, ticket);
+      }
     });
     
     let created = 0;
     let updated = 0;
+    let skipped = 0;
     let failed = 0;
     
     for (let i = 0; i < mondayItems.length; i++) {
       const item = mondayItems[i];
       const itemData = { subject: item.name };
+      
+      const rmaCol = item.column_values.find(function(c) {
+        return c.id === config.rmaField.monday;
+      });
+      const rmaNumber = rmaCol ? rmaCol.text : null;
+      
+      if (rmaNumber) {
+        itemData.rma_number = rmaNumber;
+      }
       
       const fieldDetails = [];
       config.fieldMappings.forEach(function(mapping) {
@@ -346,7 +395,65 @@ async function syncMondayToHubSpot() {
         }
       });
       
-      const existingTicket = hubspotMap.get(itemData.subject);
+      if (!rmaNumber) {
+        skipped++;
+        logDetailed(syncTime, 'Monday → HubSpot', 'Skipped', itemData.subject, 'No RMA number', 'info');
+        continue;
+      }
+      
+      const existingTicket = hubspotMap.get(rmaNumber);
+      
+      try {
+        if (!existingTicket) {
+          if (config.autoCreateItems) {
+            await createHubSpotTicket(itemData);
+            created++;
+            logSync('Created HubSpot ticket: ' + itemData.subject, 'success');
+            logDetailed(syncTime, 'Monday → HubSpot', 'Created', itemData.subject, 'RMA: ' + rmaNumber + ', ' + fieldDetails.join(', '), 'success');
+          } else {
+            skipped++;
+            logDetailed(syncTime, 'Monday → HubSpot', 'Skipped', itemData.subject, 'No matching RMA in HubSpot (RMA: ' + rmaNumber + ')', 'info');
+          }
+        } else {
+          const updateData = {};
+          const updatedFields = [];
+          
+          config.fieldMappings.forEach(function(mapping) {
+            const shouldSync = mapping.sourceOfTruth === 'monday' || mapping.sourceOfTruth === 'both';
+            if (shouldSync && itemData[mapping.mondayColumn] !== undefined) {
+              updateData[mapping.mondayColumn] = itemData[mapping.mondayColumn];
+              updatedFields.push(mapping.label);
+            }
+          });
+          
+          if (Object.keys(updateData).length > 0) {
+            await updateHubSpotTicket(existingTicket.id, updateData);
+            updated++;
+            logDetailed(syncTime, 'Monday → HubSpot', 'Updated', itemData.subject, 'RMA: ' + rmaNumber + ', Fields: ' + updatedFields.join(', '), 'success');
+          } else {
+            skipped++;
+            logDetailed(syncTime, 'Monday → HubSpot', 'Skipped', itemData.subject, 'RMA: ' + rmaNumber + ', No fields to sync (source of truth rules)', 'info');
+          }
+        }
+      } catch (error) {
+        failed++;
+        logSync('Failed to sync item: ' + itemData.subject, 'error');
+        logDetailed(syncTime, 'Monday → HubSpot', 'Failed', itemData.subject, 'RMA: ' + rmaNumber + ', Error: ' + error.message, 'error');
+      }
+    }
+    
+    logSync('Monday to HubSpot sync complete: ' + created + ' created, ' + updated + ' updated, ' + skipped + ' skipped, ' + failed + ' failed', failed > 0 ? 'error' : 'success');
+    config.lastSync = new Date().toISOString();
+  } catch (error) {
+    logSync('Sync failed: ' + error.message, 'error');
+  }
+}
+
+async function performFullSync() {
+  await syncHubSpotToMonday();
+  await syncMondayToHubSpot();
+}
+
       
       try {
         if (!existingTicket) {
