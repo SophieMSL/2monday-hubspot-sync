@@ -1,323 +1,548 @@
-# HubSpot Monday Sync v2 - Dynamic Field Mapping
+# v6 - Approval Queue for New Items
 
-## 🎉 What's New in Version 2
+## 🎯 New Feature: Manual Approval Before Creating Items
 
-### Fixed Issues:
-1. ✅ **All HubSpot fields available** - Select from ANY HubSpot ticket property
-2. ✅ **Add unlimited mappings** - Not limited to 3, add as many as you need
-3. ✅ **Dropdown persistence** - Your selections are saved and don't reset
-4. ✅ **Remove mappings** - Delete field mappings you don't need
+Instead of automatically creating new items (or skipping them), the app now:
 
-### New Features:
-5. ✅ **Dynamic field discovery** - Automatically loads all available fields
-6. ✅ **Better UI** - Cleaner interface with add/remove buttons
-7. ✅ **Attachment support** - Code ready for syncing HubSpot attachments (partial)
+1. ✅ **Updates** existing items automatically (RMA match)
+2. ⏸️ **Holds** new items in approval queue
+3. 👤 **You review** and approve/reject each one
+4. ✅ **Creates** only after your approval
 
 ---
 
-## 📋 Files Included
+## 📋 How It Works
 
-1. **package.json** - Dependencies
-2. **server.js** - Improved application
-3. **.env.example** - Environment variables template
-
----
-
-## 🚀 Deployment to Render
-
-### Option 1: Update Existing Service
-
-1. Go to your GitHub repo
-2. Delete the old `server.js` file
-3. Upload the new `server.js` from this folder
-4. Commit changes
-5. Render will auto-deploy in 2-3 minutes
-
-### Option 2: Fresh Deployment
-
-Follow the same steps as before:
-1. Create new GitHub repo
-2. Upload all 3 files
-3. Deploy to Render
-4. Add environment variables
-5. Access your dashboard
-
----
-
-## 🗺️ How Dynamic Field Mapping Works
-
-### Step 1: Discover Fields
-
-1. Open your dashboard
-2. Click **"Discover Available Fields"**
-3. Wait 2-3 seconds
-4. ALL dropdowns populate automatically
-
-### Step 2: Map Fields
-
-You'll see rows like this:
+### Approval Queue System:
 
 ```
-[HubSpot Field Dropdown] → [Monday Column Dropdown] [Remove]
+Sync Runs
+    ↓
+Item has no RMA match
+    ↓
+Added to Approval Queue ⏸️
+    ↓
+You review in dashboard
+    ↓
+Click "Approve" → Creates item ✅
+Click "Reject" → Removes from queue ❌
 ```
 
-**For each row:**
-- Left dropdown: Choose ANY HubSpot ticket property
-- Right dropdown: Choose which Monday column to sync it to
-- Remove button: Delete this mapping
+---
 
-### Step 3: Add More Mappings
+## 🎨 What You'll See
 
-1. Click **"+ Add Field Mapping"**
-2. New row appears
-3. Select fields from dropdowns
-4. Repeat as needed
+### New "Pending Approvals" Section in Dashboard:
 
-### Step 4: Save
-
-1. Click **"Save Field Mappings"**
-2. All your selections are saved
-3. Dropdowns will show your saved selections on next page load
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📋 Pending Approvals (3)                                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│ HubSpot → Monday                                            │
+│ ┌───────────────────────────────────────────────────────┐  │
+│ │ Item: MSL-RMA-2020-999 New Customer Request           │  │
+│ │ RMA: MSL-RMA-2020-999                                 │  │
+│ │ Fields: Description: Help needed..., Status: New      │  │
+│ │ Reason: No matching RMA in Monday                     │  │
+│ │                                                        │  │
+│ │ [✅ Approve & Create] [❌ Reject]                      │  │
+│ └───────────────────────────────────────────────────────┘  │
+│                                                              │
+│ Monday → HubSpot                                            │
+│ ┌───────────────────────────────────────────────────────┐  │
+│ │ Item: Bug Report #123                                 │  │
+│ │ RMA: BUG-123                                          │  │
+│ │ Fields: Priority: High, Status: Open                  │  │
+│ │ Reason: No matching RMA in HubSpot                    │  │
+│ │                                                        │  │
+│ │ [✅ Approve & Create] [❌ Reject]                      │  │
+│ └───────────────────────────────────────────────────────┘  │
+│                                                              │
+│ Items without RMA Number (Cannot Create)                    │
+│ ┌───────────────────────────────────────────────────────┐  │
+│ │ Item: Random Ticket                                   │  │
+│ │ RMA: (none)                                           │  │
+│ │ ⚠️ Cannot create - missing RMA number                 │  │
+│ │ [❌ Dismiss]                                           │  │
+│ └───────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 📊 Example Usage
+## 🔄 Complete Workflow
 
-### Basic Setup (3 fields):
+### 1. Sync Runs (Every 5 Minutes)
 
-1. **Mapping 1:**
-   - HubSpot: `content` (Ticket description)
-   - Monday: `text` (Description column)
+**For Items with RMA Match:**
+- ✅ Updates automatically
+- No approval needed
+- Works as before
 
-2. **Mapping 2:**
-   - HubSpot: `hs_pipeline_stage` (Stage)
-   - Monday: `status` (Status column)
-
-3. **Mapping 3:**
-   - HubSpot: `hs_ticket_priority` (Priority)
-   - Monday: `priority` (Priority column)
-
-### Advanced Setup (10+ fields):
-
-Click "+ Add Field Mapping" to add more:
-
-4. **Mapping 4:**
-   - HubSpot: `hs_ticket_category` (Category)
-   - Monday: `dropdown_1` (Category column)
-
-5. **Mapping 5:**
-   - HubSpot: `createdate` (Created date)
-   - Monday: `date` (Created column)
-
-6. **Mapping 6:**
-   - HubSpot: `closed_date` (Closed date)
-   - Monday: `date_1` (Closed column)
-
-7. **Mapping 7:**
-   - HubSpot: `hs_resolution` (Resolution)
-   - Monday: `long_text` (Resolution column)
-
-...and so on!
+**For Items WITHOUT RMA Match:**
+- ⏸️ Adds to approval queue
+- Shows in "Pending Approvals"
+- Waits for your decision
 
 ---
 
-## 🎯 Available HubSpot Fields
+### 2. You Review Queue
 
-After clicking "Discover Available Fields", you'll see dropdowns with ALL ticket properties including:
+Open dashboard and see pending items:
 
-**Standard Fields:**
-- `subject` - Ticket name/title (always mapped to Monday item name)
-- `content` - Ticket description
-- `hs_pipeline_stage` - Pipeline stage/status
-- `hs_ticket_priority` - Priority (LOW, MEDIUM, HIGH, etc.)
-- `hs_ticket_category` - Category
-- `hubspot_owner_id` - Owner/assignee
-- `createdate` - Created date
-- `closed_date` - Closed date
-- `hs_resolution` - Resolution notes
-- `source_type` - How ticket was created
-
-**Plus:**
-- Any custom properties you've created in HubSpot
-- All system properties
-- All calculated properties
-
-The dropdowns show: **Label (field_name)** for easy selection
+**Each pending item shows:**
+- Item name/title
+- RMA number
+- All field values
+- Direction (HubSpot → Monday or Monday → HubSpot)
+- Reason why it needs approval
 
 ---
 
-## 📦 Monday Column Types
+### 3. You Decide
 
-The Monday dropdown shows: **Column Title (type) [column_id]**
+**Option A: Approve ✅**
+- Click "Approve & Create"
+- Item created immediately
+- Syncs all fields
+- Removed from queue
+- Shows in detailed log
 
-**Best matches:**
-- Text/Long Text columns → for HubSpot text fields
-- Status columns → for HubSpot status/stage fields
-- Dropdown columns → for HubSpot category/priority fields
-- People columns → for HubSpot owner fields
-- Date columns → for HubSpot date fields
-- Number columns → for HubSpot number fields
+**Option B: Reject ❌**
+- Click "Reject"
+- Removed from queue
+- Not created
+- Logged as rejected
+
+**Option C: Ignore**
+- Don't click anything
+- Stays in queue
+- You can approve later
+- Won't create until approved
 
 ---
 
-## 🖼️ Image/Attachment Syncing
+## 📊 Example Scenarios
 
-### Current Status:
+### Scenario 1: New HubSpot Ticket Needs Monday Item
 
-The code includes **partial support** for HubSpot attachments:
+**Sync detects:**
+- HubSpot ticket: "MSL-RMA-2020-999 Emergency Fix"
+- RMA: "MSL-RMA-2020-999"
+- No Monday item with this RMA
+
+**Adds to queue:**
+```
+Pending Approval:
+Direction: HubSpot → Monday
+Item: MSL-RMA-2020-999 Emergency Fix
+RMA: MSL-RMA-2020-999
+Fields:
+  - Description: Server down, need urgent fix
+  - Status: New
+  - Priority: High
+Reason: No matching RMA in Monday
+
+[✅ Approve & Create]  [❌ Reject]
+```
+
+**You click "Approve":**
+- Creates Monday item immediately
+- All fields synced
+- Log shows: "Created Monday item (approved by user)"
+
+---
+
+### Scenario 2: New Monday Item Needs HubSpot Ticket
+
+**Sync detects:**
+- Monday item: "Feature Request #456"
+- RMA: "FEAT-456"
+- No HubSpot ticket with this RMA
+
+**Adds to queue:**
+```
+Pending Approval:
+Direction: Monday → HubSpot
+Item: Feature Request #456
+RMA: FEAT-456
+Fields:
+  - Description: Add export button
+  - Priority: Medium
+Reason: No matching RMA in HubSpot
+
+[✅ Approve & Create]  [❌ Reject]
+```
+
+**You click "Reject":**
+- Not created in HubSpot
+- Removed from queue
+- Log shows: "Rejected by user"
+
+---
+
+### Scenario 3: Item Without RMA
+
+**Sync detects:**
+- HubSpot ticket: "Random Question"
+- RMA: (empty)
+
+**Adds to queue:**
+```
+Warning - Cannot Create:
+Item: Random Question
+RMA: (none)
+⚠️ This item cannot be created because it has no RMA number.
+Please add an RMA number in HubSpot, then it will appear for approval.
+
+[❌ Dismiss]
+```
+
+**You click "Dismiss":**
+- Removed from queue
+- Never creates (no RMA = no sync)
+
+---
+
+## 🎯 Benefits
+
+### 1. **Full Control**
+- You approve every new item
+- No surprises
+- No accidental creation
+
+### 2. **Review Before Create**
+- See all field values
+- Check if it should exist
+- Verify RMA number
+
+### 3. **Prevent Duplicates**
+- Reject if you recognize it
+- Approve only genuine new items
+- Complete safety
+
+### 4. **Batch Approval**
+- Multiple items queue up
+- Approve/reject them all at once
+- Efficient workflow
+
+### 5. **Clear Audit Trail**
+- Logs show "Approved by user"
+- Logs show "Rejected by user"
+- Track all decisions
+
+---
+
+## ⚙️ Configuration
+
+### Approval Queue Settings:
 
 ```javascript
-async function getHubSpotAttachments(ticketId)
+config = {
+  approvalQueueEnabled: true,    // Enable approval queue
+  autoCreateItems: false,         // Don't auto-create
+  pendingApprovals: []           // Queue of pending items
+}
 ```
 
-This function can fetch attachments from HubSpot tickets.
+### Toggle Approval Mode:
 
-### To Fully Enable:
+**Option 1: Require Approval (Default)**
+- `approvalQueueEnabled: true`
+- New items go to queue
+- You must approve
 
-1. **Add a "Files" column to your Monday board**
-   - Column type: "Files"
-   - Note the column ID
+**Option 2: Auto-Create (Old Behaviour)**
+- `approvalQueueEnabled: false`
+- `autoCreateItems: true`
+- Creates automatically (risky!)
 
-2. **Add mapping for attachments:**
-   - HubSpot: `hs_attachment_ids` (read-only field showing attachment IDs)
-   - Monday: `your_files_column_id`
-
-3. **Note:** Full implementation requires:
-   - Downloading files from HubSpot
-   - Re-uploading to Monday via API
-   - Monday's file upload uses different API endpoint
-   - May need additional development
-
-### Current Limitation:
-
-Monday.com's file upload API is more complex and requires multipart form data. The basic code structure is there, but full implementation would need:
-
-1. Download file from HubSpot URL
-2. Convert to proper format
-3. Upload to Monday using their file upload mutation
-4. Handle large files properly
-
-**This is marked for future development** but the foundation is in place.
+**Option 3: Skip (v5 Behaviour)**
+- `approvalQueueEnabled: false`
+- `autoCreateItems: false`
+- Skips new items
 
 ---
 
-## 🔧 Troubleshooting
+## 📋 Queue Management
 
-### Dropdowns Empty After "Discover Fields"
+### Pending Approvals Table:
 
-**Cause:** API connection issue
+```
+ID | Direction        | Item Name    | RMA      | Action
+---+------------------+--------------+----------+--------
+1  | HubSpot → Monday | Ticket #123  | RMA-123  | [Approve][Reject]
+2  | Monday → HubSpot | Bug Report   | BUG-001  | [Approve][Reject]
+3  | HubSpot → Monday | Request #456 | REQ-456  | [Approve][Reject]
+```
 
-**Fix:**
-1. Check your API tokens are correct
-2. Verify Board ID is correct
-3. Check browser console (F12) for errors
-4. Try "Save Configuration" first, then "Discover Fields"
+### Bulk Actions:
 
-### Selections Reset After Save
-
-**This is fixed in v2!** 
-
-**If still happening:**
-1. Make sure you're using the NEW server.js file
-2. Clear browser cache
-3. Hard refresh (Ctrl+F5 or Cmd+Shift+R)
-
-### Can't Add More Than 3 Mappings
-
-**This is fixed in v2!**
-
-**If still happening:**
-1. Make sure you uploaded the NEW server.js
-2. Check Render logs - should show "Deployed" with new code
-3. Click "+ Add Field Mapping" button (green button)
-
-### "Remove" Button Doesn't Work
-
-**Fix:**
-1. Hard refresh browser
-2. Make sure JavaScript is enabled
-3. Check browser console for errors
-
-### Mappings Not Saving
-
-**Fix:**
-1. Fill out BOTH dropdowns (HubSpot AND Monday)
-2. Click "Save Field Mappings" button at bottom
-3. Check Sync Log for confirmation message
-4. Wait for page reload
+- **Approve All** - Creates all pending items
+- **Reject All** - Clears entire queue
+- **Export Queue** - Download CSV of pending items
 
 ---
 
-## 📝 Best Practices
+## 🔔 Notifications
 
-### 1. Start Small
-- Begin with 3-5 essential fields
-- Test sync with "Manual Sync Now"
-- Add more fields gradually
+### Queue Counter Badge:
 
-### 2. Match Column Types
-- Text → Text columns
-- Status → Status columns
-- Dates → Date columns
-- Numbers → Number columns
-
-### 3. Use Descriptive Names
-- Label your Monday columns clearly
-- Helps identify them in dropdowns
-
-### 4. Test Before Enabling Auto-Sync
-1. Add field mappings
-2. Save
-3. Click "Manual Sync Now"
-4. Check both platforms
-5. Only then enable auto-sync
-
-### 5. Document Your Mappings
-Keep a note of what you mapped:
+At the top of dashboard:
 ```
-content → text (Description)
-hs_pipeline_stage → status (Status)
-hs_ticket_priority → priority (Priority)
-hs_ticket_category → dropdown_1 (Category)
+Pending Approvals: (5) ⚠️
+```
+
+Clicking takes you to the approval section.
+
+### Email Alerts (Optional):
+
+When items added to queue:
+```
+Subject: 3 New Items Pending Approval
+
+You have 3 items waiting for approval:
+1. MSL-RMA-2020-999 (HubSpot → Monday)
+2. FEAT-456 (Monday → HubSpot)
+3. BUG-123 (Monday → HubSpot)
+
+Review: https://your-app.onrender.com
 ```
 
 ---
 
-## 🎓 How Matching Still Works
+## 📊 Enhanced Logging
 
-**Important:** Even with dynamic mapping, tickets still match by **name/title**:
+### Detailed Log Shows Approval Status:
 
-- HubSpot `subject` = Monday `name`
-- If names match exactly → updates existing item
-- If no match → creates new item
+```
+✅ Approved | MSL-RMA-2020-999 | User approved creation
+✅ Created  | MSL-RMA-2020-999 | RMA: MSL-RMA-2020-999, All fields
+❌ Rejected | FEAT-456 | User rejected creation
+⏸️ Pending  | BUG-123 | Waiting for approval
+```
 
-**Future improvement:** Will add ID-based matching for more reliability.
+### Summary Includes Approval Stats:
 
----
-
-## ✅ Success Checklist
-
-- ✅ Deployed new server.js to Render
-- ✅ Dashboard loads without errors
-- ✅ Clicked "Discover Available Fields"
-- ✅ See ALL HubSpot fields in left dropdowns
-- ✅ See ALL Monday columns in right dropdowns
-- ✅ Can add new field mappings with "+ Add Field Mapping"
-- ✅ Can remove mappings with "Remove" button
-- ✅ Saved mappings persist after page reload
-- ✅ "Manual Sync Now" works
-- ✅ Data syncs correctly between platforms
+```
+Sync Summary:
+- 10 updated
+- 5 skipped
+- 3 pending approval ⏸️
+- 2 approved & created ✅
+- 1 rejected ❌
+```
 
 ---
 
-## 🚀 Next Steps
+## 🎨 UI Layout
 
-1. Deploy this version
-2. Test dynamic field mapping
-3. Let me know if you want:
-   - ID-based matching (more reliable)
-   - Full attachment syncing
-   - Bi-directional attachment support
-   - Custom field type handling
+```
+┌─ Dashboard ──────────────────────────────────────────┐
+│                                                       │
+│ Status: Sync Enabled ✅                               │
+│ Pending Approvals: (5) ⚠️ ← Click to scroll to queue│
+│                                                       │
+├─ Configuration ──────────────────────────────────────┤
+│ [API Tokens...]                                      │
+│                                                       │
+├─ Field Mapping ──────────────────────────────────────┤
+│ [Field mappings...]                                  │
+│                                                       │
+├─ Sync Controls ──────────────────────────────────────┤
+│ [Enable] [Disable] [Manual Sync]                     │
+│                                                       │
+├─ ⭐ PENDING APPROVALS (5) ⭐ ─────────────────────────┤
+│                                                       │
+│ [Approve All] [Reject All] [Export CSV]              │
+│                                                       │
+│ ┌─ Pending Item #1 ─────────────────────────────┐   │
+│ │ Direction: HubSpot → Monday                   │   │
+│ │ Item: MSL-RMA-2020-999 Emergency Fix          │   │
+│ │ RMA: MSL-RMA-2020-999                         │   │
+│ │ Details: Description: Server down...          │   │
+│ │          Status: New                          │   │
+│ │          Priority: High                       │   │
+│ │ [✅ Approve & Create] [❌ Reject] [ℹ️ Details] │   │
+│ └───────────────────────────────────────────────┘   │
+│                                                       │
+│ ┌─ Pending Item #2 ─────────────────────────────┐   │
+│ │ [Similar layout...]                           │   │
+│ └───────────────────────────────────────────────┘   │
+│                                                       │
+├─ Detailed Sync History ──────────────────────────────┤
+│ [Table showing sync activity...]                     │
+│                                                       │
+├─ Summary Log ────────────────────────────────────────┤
+│ [Summary messages...]                                │
+└───────────────────────────────────────────────────────┘
+```
 
-Your feedback on this version will help me prioritize the next improvements!
+---
+
+## 🔧 Implementation Details
+
+### Approval Queue Data Structure:
+
+```javascript
+pendingApprovals: [
+  {
+    id: "uuid-1234",
+    direction: "hubspot_to_monday",
+    itemName: "MSL-RMA-2020-999 Emergency Fix",
+    rmaNumber: "MSL-RMA-2020-999",
+    data: {
+      subject: "MSL-RMA-2020-999 Emergency Fix",
+      description: "Server down...",
+      status: "New",
+      priority: "High"
+    },
+    timestamp: "2026-02-13T14:30:00Z",
+    reason: "No matching RMA in Monday"
+  }
+]
+```
+
+### API Endpoints:
+
+- `GET /approvals` - Get pending approvals
+- `POST /approve/:id` - Approve and create item
+- `POST /reject/:id` - Reject and remove from queue
+- `POST /approve-all` - Approve all pending
+- `POST /reject-all` - Clear queue
+
+---
+
+## ✅ Workflow Example
+
+### Day 1: Items Queue Up
+
+```
+9:00 AM - Sync runs
+  → 3 items need approval
+  → Added to queue
+
+9:05 AM - Sync runs
+  → 2 more items need approval
+  → Queue now has 5 items
+
+Dashboard shows: Pending Approvals: (5) ⚠️
+```
+
+### Day 1: You Review
+
+```
+2:00 PM - You open dashboard
+  → See 5 pending items
+  → Review each one
+  → Approve 3, Reject 2
+  → Queue now has 0 items
+
+Dashboard shows: Pending Approvals: (0) ✅
+```
+
+### Day 2: Auto-Sync Continues
+
+```
+Sync runs every 5 minutes
+  → Items with RMA match: Update automatically ✅
+  → Items without match: Add to approval queue ⏸️
+  → You review when convenient
+```
+
+---
+
+## 🎯 Best Practices
+
+### 1. **Review Daily**
+- Check queue once per day
+- Approve legitimate items
+- Reject junk/duplicates
+
+### 2. **Don't Let Queue Grow**
+- Large queue = overwhelming
+- Review regularly
+- Keep queue under 10 items
+
+### 3. **Use Reject Wisely**
+- Reject = remove from queue
+- Item won't create
+- Might appear again if not fixed
+
+### 4. **Check RMA Numbers**
+- Verify RMA is correct
+- Check for typos
+- Ensure unique
+
+### 5. **Approve in Batches**
+- Review all at once
+- Use "Approve All" if confident
+- Faster workflow
+
+---
+
+## 🆘 Troubleshooting
+
+### "Queue keeps filling up"
+
+**Cause:** Lots of items without RMA matches
+
+**Fix:**
+1. Review why items don't match
+2. Fix RMA numbers at source
+3. Or reject items that shouldn't sync
+
+---
+
+### "Accidentally rejected item"
+
+**It will appear again next sync!**
+
+**Fix:**
+1. Wait for next sync (5 min)
+2. Item re-appears in queue
+3. Approve it this time
+
+---
+
+### "Want to auto-approve certain items"
+
+**Future feature - Auto-Approve Rules:**
+- If RMA starts with "AUTO-" → Auto-approve
+- If Priority = "Low" → Auto-approve
+- If User = "System" → Auto-approve
+
+**Would you like this feature?**
+
+---
+
+## 📊 Summary
+
+### What v6 Adds:
+
+✅ **Approval queue** for new items
+✅ **Manual review** before creation
+✅ **Approve/Reject buttons** for each item
+✅ **Queue counter** badge
+✅ **Bulk actions** (Approve All / Reject All)
+✅ **Enhanced logging** (shows approval status)
+✅ **Complete control** over what gets created
+
+### Result:
+
+- ✅ Zero surprises
+- ✅ Zero accidental creation
+- ✅ Full visibility
+- ✅ Complete control
+- ✅ Safe and reliable
+
+---
+
+## 🚀 Deploy When Ready
+
+This version gives you **complete control** over what gets created!
+
+Every new item needs **your explicit approval** before creation.
+
+**Would you like me to build this?** 🎯
